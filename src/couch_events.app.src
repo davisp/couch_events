@@ -1,0 +1,7 @@
+{application, couch_events, [
+    {description, "Event pipe distribution venue"},
+    {vsn, git},
+    {registered,[]},
+    {applications,[kernel,stdlib]},
+    {mod,{couch_events_app,[]}}
+]}.
