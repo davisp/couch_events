@@ -53,7 +53,7 @@ init(_) ->
 
 
 terminate(_Reason, State) ->
-    lists:foreach(fun({_, Pid}) ->
+    lists:foreach(fun({Pid, _}) ->
         exit(Pid, kill)
     end, State#st.channels),
     ok.
