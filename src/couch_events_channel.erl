@@ -17,7 +17,8 @@ start_link(Client) when is_pid(Client) ->
 
 
 init(Client) when is_pid(Client) ->
-    Ref = erlang:monitor(process, Client),
+    erlang:monitor(process, Client),
+    Ref = erlang:make_ref(),
     proc_lib:init_ack({ok, self(), Ref}),
     gen_server:enter_loop(?MODULE, [], #st{clients=[{Ref, Client}]}).
 
@@ -27,7 +28,8 @@ terminate(_Reason, _State) ->
 
 
 handle_call({subscribe, Client}, _From, State) when is_pid(Client) ->
-    Ref = erlang:monitor(process, Client),
+    erlang:monitor(process, Client),
+    Ref = erlang:make_ref(),
     Clients = [{Ref, Client} | State#st.clients],
     {reply, {ok, Ref}, State#st{clients=Clients}};
 handle_call({unsubscribe, Client}, _From, State) when is_pid(Client) ->
@@ -49,8 +51,8 @@ handle_cast(Mesg, State) ->
     {stop, {unknown_cast, Mesg}, State}.
 
 
-handle_info({'DOWN', Ref, process, _Pid, _}, State) ->
-    Clients = lists:keydelete(Ref, 1, State#st.clients),
+handle_info({'DOWN', _, process, Pid, _}, State) ->
+    Clients = lists:keydelete(Pid, 2, State#st.clients),
     case Clients of
         [] -> {stop, normal, State};
         _ -> {noreply, State#st{clients=Clients}}
