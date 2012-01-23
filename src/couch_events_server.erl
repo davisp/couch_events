@@ -73,10 +73,17 @@ handle_cast(Mesg, State) ->
 
 
 handle_info({'EXIT', Pid, _Reason}, State) ->
-    {Pid, Channel} = lists:keyfind(Pid, 2, State#st.channels),
-    Channels = lists:keydelete(Pid, 1, State#st.channels),
-    ok = del_pid(Channel),
-    {noreply, State#st{channels=Channels}};
+    case lists:keyfind(Pid, 1, State#st.channels) of
+        {value, {Pid, Channel}} ->
+            Channels = lists:keydelete(Pid, 1, State#st.channels),
+            ok = del_pid(Channel),
+            {noreply, State#st{channels=Channels}};
+        false ->
+            % Something in the code reloading stuff spawns processes
+            % that trigger this clause. Ignore them and hope for
+            % the best.
+            {noreply, State}
+    end;
 handle_info(Mesg, State) ->
     {stop, {unknown_info, Mesg}, State}.
 
