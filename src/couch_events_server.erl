@@ -22,7 +22,7 @@ subscribe(Channel) ->
 
 
 subscribe(Channel, Client) ->
-    case couch_events_kv:get(Channel) of
+    case get_pid(Channel) of
         undefined ->
             {ok, C, R} = gen_server:call(?MODULE, {create, Channel, Client}),
             link(C),
@@ -38,7 +38,7 @@ unsubscribe(Channel) ->
 
 
 unsubscribe(Channel, Client) ->
-    case couch_events_kv:get(Channel) of
+    case get_pid(Channel) of
         undefined ->
             throw(unknown_channel);
         Pid when is_pid(Pid) ->
@@ -61,7 +61,7 @@ terminate(_Reason, State) ->
 
 handle_call({create, Channel, Client}, _From, State) when is_pid(Client) ->
     {ok, Pid, Ref} = couch_events_channel:start_link(Client),
-    ok = couch_events_kv:put(Channel, Pid),
+    ok = put_pid(Channel, Pid),
     Channels = [{Pid, Channel} | State#st.channels],
     {reply, {ok, Pid, Ref}, State#st{channels=Channels}};
 handle_call(Mesg, _From, State) ->
@@ -75,7 +75,7 @@ handle_cast(Mesg, State) ->
 handle_info({'EXIT', Pid, _Reason}, State) ->
     {Pid, Channel} = lists:keyfind(Pid, 2, State#st.channels),
     Channels = lists:keydelete(Pid, 1, State#st.channels),
-    ok = couch_events_kv:delete(Channel),
+    ok = del_pid(Channel),
     {noreply, State#st{channels=Channels}};
 handle_info(Mesg, State) ->
     {stop, {unknown_info, Mesg}, State}.
@@ -83,4 +83,19 @@ handle_info(Mesg, State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+
+get_pid(Key) ->
+    case couch_events_kv:get(Key) of
+        undefined -> undefined;
+        Pid -> list_to_pid(Pid)
+    end.
+
+
+put_pid(Key, Pid) when is_pid(Pid) ->
+    couch_events_kv:put(Key, pid_to_list(Pid)).
+
+
+del_pid(Key) ->
+    couch_events_kv:delete(Key).
 
