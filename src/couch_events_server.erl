@@ -2,7 +2,6 @@
 -behavior(gen_server).
 
 -export([start_link/0]).
--export([subscribe/1, subscribe/2, unsubscribe/1, unsubscribe/2]).
 
 -export([init/1, terminate/2, code_change/3]).
 -export([handle_call/3, handle_cast/2, handle_info/2]).
@@ -15,36 +14,6 @@
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
-
-subscribe(Channel) ->
-    subscribe(Channel, self()).
-
-
-subscribe(Channel, Client) ->
-    case get_pid(Channel) of
-        undefined ->
-            {ok, C, R} = gen_server:call(?MODULE, {create, Channel, Client}),
-            link(C),
-            {ok, R};
-        Pid when is_pid(Pid) ->
-            link(Pid),
-            gen_server:call(Pid, {subscribe, Client})
-    end.
-
-
-unsubscribe(Channel) ->
-    unsubscribe(Channel, self()).
-
-
-unsubscribe(Channel, Client) ->
-    case get_pid(Channel) of
-        undefined ->
-            throw(unknown_channel);
-        Pid when is_pid(Pid) ->
-            unlink(Pid),
-            gen_server:call(Pid, {unsubscribe, Client})
-    end.
 
 
 init(_) ->
@@ -90,13 +59,6 @@ handle_info(Mesg, State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-
-get_pid(Key) ->
-    case couch_events_kv:get(Key) of
-        undefined -> undefined;
-        Pid -> list_to_pid(Pid)
-    end.
 
 
 put_pid(Key, Pid) when is_pid(Pid) ->
